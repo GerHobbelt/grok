@@ -1,11 +1,9 @@
-# CONFORMANCE TESTS AND NON-REGRESSION ON THIS DATASET
-
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Temporary)
 
 set(TEMP ${CMAKE_CURRENT_BINARY_DIR}/Temporary)
-set(BASELINE_CONF ${GROK_DATA_ROOT}/baseline/conformance)
-set(BASELINE_NR ${GROK_DATA_ROOT}/baseline/nonregression)
-set(INPUT_CONF ${GROK_DATA_ROOT}/input/conformance)
+set(BASELINE_CONF ${GRK_DATA_ROOT}/baseline/conformance)
+set(BASELINE_NR ${GRK_DATA_ROOT}/baseline/nonregression)
+set(INPUT_CONF ${GRK_DATA_ROOT}/input/conformance)
 
 
 # List of components by file (normally p0_13.j2k have 257 components but for this
@@ -13,294 +11,301 @@ set(INPUT_CONF ${GROK_DATA_ROOT}/input/conformance)
 set( CP0_nbC_list "not_used;1;1;1;3;4;4;3;3;1;3;1;1;4;3;1;1")
 set( CP1_nbC_list "not_used;1;3;4;1;3;3;2")
 
-set(COMMENTCODEVAR FALSE)
-
-
 ##--------------------------------------------------------------------------
-## Tests about class 0 profile 0
+## Tests for class 0 profile 0
 ## try to decode
 ## compare to ref file provided by the Executable Test Suite
 ## non regression comparison
 
 ## Parameters and tolerances given by Table C.1
-#set( C0P0_ResFactor_list "not_used;0;0;0;3;3;3;0;5;2;0;0;0;0;2;0;0")
-#set( C0P0_PEAK_list "not_used;0;0;0;33;54;109;10;7;4;10;0;0;0;0;0;0")
-#set( C0P0_MSE_list "not_used;0;0;0;55.8;68;743;0.34;6.72;1.47;2.84;0;0;0;0;0;0")
+set( C0P0_ResFactor_list "not_used;0;0;0;3;3;3;0;5;2;0;0;0;0;2;0;0")
+set( C0P0_PEAK_list "not_used;0;0;0;33;54;109;10;7;4;10;0;0;0;0;0;0")
+set( C0P0_MSE_list "not_used;0;0;0;55.8;68;743;0.34;6.72;1.47;2.84;0;0;0;0;0;0")
 
+# Partially disabled because tests fail :)
 #foreach(numFileC0P0 RANGE 1 16)
+foreach(numFileC0P0 RANGE 1 2)
+#   Build filenames
+  if(${numFileC0P0} LESS 10)
+    set( filenameInput p0_0${numFileC0P0}.j2k )
+    set( filenameRef   c0p0_0${numFileC0P0}.pgx )
+  else()
+    set( filenameInput p0_${numFileC0P0}.j2k )
+    set( filenameRef   c0p0_${numFileC0P0}.pgx )
+  endif()
 
-#  # Build filenames
-#  if(${numFileC0P0} LESS 10)
-#    set( filenameInput p0_0${numFileC0P0}.j2k )
-#    set( filenameRef   c0p0_0${numFileC0P0}.pgx )
-#  else()
-#    set( filenameInput p0_${numFileC0P0}.j2k )
-#    set( filenameRef   c0p0_${numFileC0P0}.pgx )
-#  endif()
+#   Get corresponding tests parameters
+  list(GET C0P0_ResFactor_list ${numFileC0P0}  ResFactor)
+#  For Class-0 testing, we always focus on the first component only
+  # list(GET CP0_nbC_list ${numFileC0P0}  nbComponents)
+  set( nbComponents "1")
+  list(GET C0P0_PEAK_list ${numFileC0P0}  PEAK_limit)
+  list(GET C0P0_MSE_list ${numFileC0P0}  MSE_limit)
 
-#  # Get corresponding tests parameters
-#  list(GET C0P0_ResFactor_list ${numFileC0P0}  ResFactor)
-#  #For Class-0 testing, we always focus on the first component only
-#  #list(GET CP0_nbC_list ${numFileC0P0}  nbComponents)
-#  set( nbComponents "1")
-#  list(GET C0P0_PEAK_list ${numFileC0P0}  PEAK_limit)
-#  list(GET C0P0_MSE_list ${numFileC0P0}  MSE_limit)
+#   Manage cases which need to try different resolution reduction
+  if (numFileC0P0 EQUAL 3 OR numFileC0P0 EQUAL 15)
+    get_filename_component(filenameRefSub ${filenameRef} NAME_WE)
+#    r = 0
 
-#  # Manage cases which need to try different resolution reduction
-#  if (numFileC0P0 EQUAL 3 OR numFileC0P0 EQUAL 15)
-#    get_filename_component(filenameRefSub ${filenameRef} NAME_WE)
-#    #r = 0
+    add_test(ETS-C0P0-${filenameInput}-r0-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}r0.pgx
+        -t 0
+        )
 
-#    add_test(ETS-C0P0-${filenameInput}-r0-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}-r0.pgx
-#        -r 0
-#        )
+    add_test(ETS-C0P0-${filenameInput}-r0-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRefSub}r0.pgx
+        -t ${TEMP}/c0${filenameInput}r0.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    add_test(ETS-C0P0-${filenameInput}-r0-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRefSub}r0.pgx
-#        -t ${TEMP}/c0${filenameInput}-r0.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    set_tests_properties(ETS-C0P0-${filenameInput}-r0-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-r0-decode)
 
-#    set_tests_properties(ETS-C0P0-${filenameInput}-r0-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-r0-decode)
+    add_test(NR-C0P0-${filenameInput}-r0-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRefSub}r0.pgx
+        -t ${TEMP}/c0${filenameInput}r0.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    add_test(NR-C0P0-${filenameInput}-r0-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRefSub}-r0.pgx
-#        -t ${TEMP}/c0${filenameInput}-r0.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    set_tests_properties(NR-C0P0-${filenameInput}-r0-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-r0-decode)
 
-#    set_tests_properties(NR-C0P0-${filenameInput}-r0-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-r0-decode)
+#    r = 1
+    add_test(ETS-C0P0-${filenameInput}-r1-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}r1.pgx
+        -r 1
+        )
 
-#    #r = 1
-#    add_test(ETS-C0P0-${filenameInput}-r1-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}-r1.pgx
-#        -r 1
-#        )
+    add_test(ETS-C0P0-${filenameInput}-r1-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRefSub}r1.pgx
+        -t ${TEMP}/c0${filenameInput}r1.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    add_test(ETS-C0P0-${filenameInput}-r1-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRefSub}r1.pgx
-#        -t ${TEMP}/c0${filenameInput}-r1.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    set_tests_properties(ETS-C0P0-${filenameInput}-r1-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-r1-decode)
 
-#    set_tests_properties(ETS-C0P0-${filenameInput}-r1-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-r1-decode)
+    add_test(NR-C0P0-${filenameInput}-r1-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRefSub}r1.pgx
+        -t ${TEMP}/c0${filenameInput}r1.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    add_test(NR-C0P0-${filenameInput}-r1-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRefSub}-r1.pgx
-#        -t ${TEMP}/c0${filenameInput}-r1.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    set_tests_properties(NR-C0P0-${filenameInput}-r1-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-r1-decode)
 
-#    set_tests_properties(NR-C0P0-${filenameInput}-r1-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-r1-decode)
+  else()
 
-#  else()
+    add_test(ETS-C0P0-${filenameInput}-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}.pgx
+        -r ${ResFactor}
+        -t 0
+        -p 8S
+        )
 
-#    add_test(ETS-C0P0-${filenameInput}-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}.pgx
-#        -r ${ResFactor}
-#        )
+    add_test(ETS-C0P0-${filenameInput}-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRef}
+        -t ${TEMP}/c0${filenameInput}.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    add_test(ETS-C0P0-${filenameInput}-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRef}
-#        -t ${TEMP}/c0${filenameInput}.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    set_tests_properties(ETS-C0P0-${filenameInput}-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-decode)
 
-#    set_tests_properties(ETS-C0P0-${filenameInput}-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-decode)
+    add_test(NR-C0P0-${filenameInput}-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRef}
+        -t ${TEMP}/c0${filenameInput}.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    add_test(NR-C0P0-${filenameInput}-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRef}
-#        -t ${TEMP}/c0${filenameInput}.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    set_tests_properties(NR-C0P0-${filenameInput}-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P0-${filenameInput}-decode)
 
-#    set_tests_properties(NR-C0P0-${filenameInput}-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P0-${filenameInput}-decode)
+  endif()
 
-#  endif()
-
-#endforeach()
+endforeach()
 
 ##--------------------------------------------------------------------------
-## Tests about class 0 profile 1
+## Tests for class 0 profile 1
 ## try to decode
 ## compare to ref file
 ## non regression comparison
 
 ## Parameters and tolerances given by Table C.4
-#set( C0P1_ResFactor_list "not_used;0;3;3;0;4;1;0")
-#set( C0P1_PEAK_list "not_used;0;35;28;2;128;128;0")
-#set( C0P1_MSE_list "not_used;0;74;18.8;0.550;16384;16384;0")
+set( C0P1_ResFactor_list "not_used;0;3;3;0;4;1;0")
+set( C0P1_PEAK_list "not_used;0;35;28;2;128;128;0")
+set( C0P1_MSE_list "not_used;0;74;18.8;0.550;16384;16384;0")
 
+# Partially disabled because tests fail :)
 #foreach(numFileC0P1 RANGE 1 7)
+foreach(numFileC0P1 RANGE 1 1)
 
-#  # Build filenames
-#  set( filenameInput p1_0${numFileC0P1}.j2k )
-#  set( filenameRef   c0p1_0${numFileC0P1}.pgx )
+#   Build filenames
+  set( filenameInput p1_0${numFileC0P1}.j2k )
+  set( filenameRef   c0p1_0${numFileC0P1}.pgx )
 
-#  # Get corresponding tests parameters
-#  list(GET C0P1_ResFactor_list ${numFileC0P1}  ResFactor)
-#  #For Class-0 testing, we always focus on the first component only
-#  #list(GET CP0_nbC_list ${numFileC0P0}  nbComponents)
-#  set( nbComponents "1")
-#  list(GET C0P1_PEAK_list ${numFileC0P1}  PEAK_limit)
-#  list(GET C0P1_MSE_list ${numFileC0P1}  MSE_limit)
+#   Get corresponding tests parameters
+  list(GET C0P1_ResFactor_list ${numFileC0P1}  ResFactor)
+#  For Class-0 testing, we always focus on the first component only
+  # list(GET CP0_nbC_list ${numFileC0P1}  nbComponents)
+  set( nbComponents "1")
+  list(GET C0P1_PEAK_list ${numFileC0P1}  PEAK_limit)
+  list(GET C0P1_MSE_list ${numFileC0P1}  MSE_limit)
 
-#  # Manage cases which need to try different resolution reduction
-#  if (numFileC0P1 EQUAL 4 )
-#    get_filename_component(filenameRefSub ${filenameRef} NAME_WE)
+#   Manage cases which need to try different resolution reduction
+  if (numFileC0P1 EQUAL 4 )
+    get_filename_component(filenameRefSub ${filenameRef} NAME_WE)
 
-#    #r = 0
-#    add_test(ETS-C0P1-${filenameInput}-r0-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}-r0.pgx
-#        -r 0
-#        )
+#    r = 0
+    add_test(ETS-C0P1-${filenameInput}-r0-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}r0.pgx
+        -t 0
+        -p 8S
+        )
 
-#    add_test(ETS-C0P1-${filenameInput}-r0-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRefSub}r0.pgx
-#        -t ${TEMP}/c0${filenameInput}-r0.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    add_test(ETS-C0P1-${filenameInput}-r0-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRefSub}r0.pgx
+        -t ${TEMP}/c0${filenameInput}r0.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    set_tests_properties(ETS-C0P1-${filenameInput}-r0-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-r0-decode)
+    set_tests_properties(ETS-C0P1-${filenameInput}-r0-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-r0-decode)
 
-#    add_test(NR-C0P1-${filenameInput}-r0-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRefSub}-r0.pgx
-#        -t ${TEMP}/c0${filenameInput}-r0.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    add_test(NR-C0P1-${filenameInput}-r0-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRefSub}r0.pgx
+        -t ${TEMP}/c0${filenameInput}r0.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    set_tests_properties(NR-C0P1-${filenameInput}-r0-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-r0-decode)
+    set_tests_properties(NR-C0P1-${filenameInput}-r0-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-r0-decode)
 
-#    #r = 3
-#    add_test(ETS-C0P1-${filenameInput}-r3-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}-r3.pgx
-#        -r 3
-#        )
+#    r = 3
+    add_test(ETS-C0P1-${filenameInput}-r3-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}r3.pgx
+        -r 3
+        -t 0
+        -p 8S
+        )
 
-#    add_test(ETS-C0P1-${filenameInput}-r3-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRefSub}r3.pgx
-#        -t ${TEMP}/c0${filenameInput}-r3.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    add_test(ETS-C0P1-${filenameInput}-r3-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRefSub}r3.pgx
+        -t ${TEMP}/c0${filenameInput}r3.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    set_tests_properties(ETS-C0P1-${filenameInput}-r3-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-r3-decode)
+    set_tests_properties(ETS-C0P1-${filenameInput}-r3-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-r3-decode)
 
-#    add_test(NR-C0P1-${filenameInput}-r3-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRefSub}-r3.pgx
-#        -t ${TEMP}/c0${filenameInput}-r3.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    add_test(NR-C0P1-${filenameInput}-r3-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRefSub}r3.pgx
+        -t ${TEMP}/c0${filenameInput}r3.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    set_tests_properties(NR-C0P1-${filenameInput}-r3-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-r3-decode)
+    set_tests_properties(NR-C0P1-${filenameInput}-r3-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-r3-decode)
 
-#  else()
+  else()
 
-#    add_test(ETS-C0P1-${filenameInput}-decode
-#        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
-#        -i ${INPUT_CONF}/${filenameInput}
-#        -o ${TEMP}/c0${filenameInput}.pgx
-#        -r ${ResFactor}
-#        )
+    add_test(ETS-C0P1-${filenameInput}-decode
+        ${EXECUTABLE_OUTPUT_PATH}/grk_decompress
+        -i ${INPUT_CONF}/${filenameInput}
+        -o ${TEMP}/c0${filenameInput}.pgx
+        -r ${ResFactor}
+        -t 0
+        -p 8S
+        )
 
-#    add_test(ETS-C0P1-${filenameInput}-compare2ref
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_CONF}/${filenameRef}
-#        -t ${TEMP}/c0${filenameInput}.pgx
-#        -n ${nbComponents}
-#        -p ${PEAK_limit}
-#        -m ${MSE_limit}
-#        -s t_
-#        )
+    add_test(ETS-C0P1-${filenameInput}-compare2ref
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_CONF}/${filenameRef}
+        -t ${TEMP}/c0${filenameInput}.pgx
+        -n ${nbComponents}
+        -p ${PEAK_limit}
+        -m ${MSE_limit}
+        -s t_
+        )
 
-#    set_tests_properties(ETS-C0P1-${filenameInput}-compare2ref
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-decode)
+    set_tests_properties(ETS-C0P1-${filenameInput}-compare2ref
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-decode)
 
-#    add_test(NR-C0P1-${filenameInput}-compare2base
-#        ${EXECUTABLE_OUTPUT_PATH}/compare_images
-#        -b ${BASELINE_NR}/opj_${filenameRef}
-#        -t ${TEMP}/c0${filenameInput}.pgx
-#        -n ${nbComponents}
-#        -d
-#        -s b_t_
-#        )
+    add_test(NR-C0P1-${filenameInput}-compare2base
+        ${EXECUTABLE_OUTPUT_PATH}/compare_images
+        -b ${BASELINE_NR}/${filenameRef}
+        -t ${TEMP}/c0${filenameInput}.pgx
+        -n ${nbComponents}
+        -d
+        -s b_t_
+        )
 
-#    set_tests_properties(NR-C0P1-${filenameInput}-compare2base
-#                         PROPERTIES DEPENDS
-#                         ETS-C0P1-${filenameInput}-decode)
+    set_tests_properties(NR-C0P1-${filenameInput}-compare2base
+                         PROPERTIES DEPENDS
+                         ETS-C0P1-${filenameInput}-decode)
 
-#  endif()
+  endif()
 
-#endforeach()
+endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about class 1 profile 0
+# Tests for class 1 profile 0
 # try to decode
 # compare to ref file
 # non regression comparison
@@ -350,7 +355,7 @@ foreach(numFileC1P0 RANGE 1 16)
 
   add_test(NAME NR-C1P0-${filenameInput}-compare2base
       COMMAND compare_images
-     -b ${BASELINE_NR}/opj_${filenameRef}
+     -b ${BASELINE_NR}/${filenameRef}
      -t ${TEMP}/c1${filenameInput}.pgx
      -n ${nbComponents}
      -d
@@ -364,7 +369,7 @@ foreach(numFileC1P0 RANGE 1 16)
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about class 1 profile 1
+# Tests for class 1 profile 1
 # try to decode
 # compare to ref file
 # non regression comparison
@@ -407,7 +412,7 @@ foreach(numFileC1P1 RANGE 1 7)
 
   add_test(NAME NR-C1P1-${filenameInput}-compare2base
       COMMAND compare_images
-     -b ${BASELINE_NR}/opj_${filenameRef}
+     -b ${BASELINE_NR}/${filenameRef}
      -t ${TEMP}/c1${filenameInput}.pgx
      -n ${nbComponents}
      -d
@@ -421,7 +426,7 @@ foreach(numFileC1P1 RANGE 1 7)
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about JP2 file
+# Tests for JP2 file
 # try to decode
 # compare to ref file
 # non regression comparison
@@ -440,7 +445,7 @@ foreach(numFileJP2 RANGE 1 9)
     -i ${INPUT_CONF}/${filenameInput}
     -o ${TEMP}/${filenameInput}.tif
     -p 8S
-    -force-rgb
+    -force_rgb
   )
 
   add_test(NAME ETS-JP2-${filenameInput}-compare2ref
@@ -459,7 +464,7 @@ foreach(numFileJP2 RANGE 1 9)
 
   add_test(NAME NR-JP2-${filenameInput}-compare2base
     COMMAND compare_images
-    -b ${BASELINE_NR}/opj_${filenameRef}
+    -b ${BASELINE_NR}/${filenameRef}
     -t ${TEMP}/${filenameInput}.tif
     -n 3
     -d
@@ -473,7 +478,7 @@ foreach(numFileJP2 RANGE 1 9)
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about Kakadu/J2K file
+# Tests for Kakadu/J2K file
 # try to decode
 # compare to ref file
 # non regression comparison
@@ -509,12 +514,7 @@ foreach(kdu_file ${kdu_j2k_conf_files})
   # Build filenames
   set( filenameInput "${kdu_file}.j2c" )
   set( filenameRef   "${kdu_file}.ppm" )
-
-	if("${kdu_file}" STREQUAL "a6_mono_colr")
-    set(kdu_test_args -upsample -split-pnm )
-  else()
-    set(kdu_test_args -upsample )
-  endif()
+  set(kdu_test_args -upsample -s )
 
   add_test(NAME ETS-KDU-${filenameInput}-decode
     COMMAND grk_decompress
@@ -545,7 +545,7 @@ foreach(kdu_file ${kdu_j2k_conf_files})
 
   add_test(NAME NR-KDU-${filenameInput}-compare2base
     COMMAND compare_images
-    -b ${BASELINE_NR}/opj_${filenameRef}
+    -b ${BASELINE_NR}/${filenameRef}
     -t ${TEMP}/${filenameInput}.ppm
     ${kdu_test_args}
     -d
@@ -557,7 +557,7 @@ foreach(kdu_file ${kdu_j2k_conf_files})
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about Richter/J2K file
+# Tests for Richter/J2K file
 # try to decode
 # compare to ref file
 # non regression comparison
@@ -581,6 +581,7 @@ foreach(r_file ${richter_jp2_conf_files})
     COMMAND grk_decompress
     -i ${INPUT_CONF}/${filenameInput}
     -o ${TEMP}/${filenameInput}.ppm
+    -s
   )
 
   set(ric_test_args -n 1)
@@ -600,7 +601,7 @@ foreach(r_file ${richter_jp2_conf_files})
 
   add_test(NAME NR-RIC-${filenameInput}-compare2base
     COMMAND compare_images
-    -b ${BASELINE_NR}/opj_${filenameRef}
+    -b ${BASELINE_NR}/${filenameRef}
     -t ${TEMP}/${filenameInput}.ppm
     ${ric_test_args}
     -d
@@ -616,8 +617,8 @@ endforeach()
 #--------------------------------------------------------------------------#
 
 #--------------------------------------------------------------------------
-# Tests about dump of profile 0 file
-# try to dump image and codestream informations into a file
+# Tests for dump of profile 0 file
+# try to dump image and codestream information into a file
 # non regression comparison this file to the baseline
 
 foreach(numFileP0 RANGE 1 16)
@@ -639,7 +640,7 @@ foreach(numFileP0 RANGE 1 16)
 
   add_test(NAME NR-${filenameInput}-compare_dump2base
       COMMAND compare_dump_files
-     -b ${BASELINE_NR}/opj_v2_${filenameRefSub}.txt
+     -b ${BASELINE_NR}/${filenameRefSub}.txt
      -t ${TEMP}/${filenameInput}.txt
      )
 
@@ -650,8 +651,8 @@ foreach(numFileP0 RANGE 1 16)
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about dump of profile 1 file
-# try to dump image and codestream informations into a file
+# Tests for dump of profile 1 file
+# try to dump image and codestream information into a file
 # non regression comparison this file to the baseline
 
 foreach(numFileP1 RANGE 1 7)
@@ -668,7 +669,7 @@ foreach(numFileP1 RANGE 1 7)
 
   add_test(NAME NR-${filenameInput}-compare_dump2base
       COMMAND compare_dump_files
-     -b ${BASELINE_NR}/opj_v2_${filenameInputSub}.txt
+     -b ${BASELINE_NR}/${filenameInputSub}.txt
      -t ${TEMP}/${filenameInput}.txt
      )
 
@@ -679,8 +680,8 @@ foreach(numFileP1 RANGE 1 7)
 endforeach()
 
 #--------------------------------------------------------------------------
-# Tests about dump of JP2 file
-# try to dump image and codestream informations into a file
+# Tests for dump of JP2 file
+# try to dump image and codestream information into a file
 # non regression comparison this file to the baseline
 
 foreach(numFileJP2 RANGE 1 9)
@@ -697,7 +698,7 @@ foreach(numFileJP2 RANGE 1 9)
 
   add_test(NAME NR-${filenameInput}-compare_dump2base
       COMMAND compare_dump_files
-     -b ${BASELINE_NR}/opj_v2_${filenameInputSub}.txt
+     -b ${BASELINE_NR}/${filenameInputSub}.txt
      -t ${TEMP}/${filenameInput}.txt
      )
 

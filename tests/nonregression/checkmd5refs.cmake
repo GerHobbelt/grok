@@ -1,4 +1,5 @@
-#    Copyright (C) 2016-2020 Grok Image Compression Inc.
+#
+#    Copyright (C) 2016-2023 Grok Image Compression Inc.
 #
 #    This source code is free software: you can redistribute it and/or  modify
 #    it under the terms of the GNU Affero General Public License, version 3,
@@ -13,14 +14,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-#    This source code incorporates work covered by the following copyright and
-#    permission notice:
-#
-#  Copyright (c) 2014 Mathieu Malaterre <mathieu.malaterre@voxxl.com>
-#
-#  Redistribution and use is allowed according to the terms of the New
-#  BSD license.
-#  For details see the accompanying COPYING-CMAKE-SCRIPTS file.
+#    This source code incorporates work covered by the BSD 2-clause license.
+#    Please see the LICENSE file in the root directory for details.
 
 # check md5 refs
 #
@@ -48,7 +43,7 @@
 get_filename_component(OUTFILENAME_NAME ${OUTFILENAME} NAME)
 string(FIND ${OUTFILENAME_NAME} "." SHORTEST_EXT_POS REVERSE)
 string(SUBSTRING ${OUTFILENAME_NAME} 0 ${SHORTEST_EXT_POS} OUTFILENAME_NAME_WE)
-file(GLOB globfiles "Temporary/${OUTFILENAME_NAME_WE}*.pgx" "Temporary/${OUTFILENAME_NAME_WE}*.png" "Temporary/${OUTFILENAME_NAME_WE}*.tif")
+file(GLOB globfiles "Temporary/${OUTFILENAME_NAME_WE}*.pgx" "Temporary/${OUTFILENAME_NAME_WE}*.png" "Temporary/${OUTFILENAME_NAME_WE}*.bmp" "Temporary/${OUTFILENAME_NAME_WE}*.tif")
 if(NOT globfiles)
   message(SEND_ERROR "Could not find output PGX files: ${OUTFILENAME_NAME_WE}")
 endif()

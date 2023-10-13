@@ -1,22 +1,8 @@
-#    Copyright (C) 2016-2020 Grok Image Compression Inc.
+# CMake build for libtiff
+# Run "cmake" to generate the build files for your platform
 #
-#    This source code is free software: you can redistribute it and/or  modify
-#    it under the terms of the GNU Affero General Public License, version 3,
-#    as published by the Free Software Foundation.
-#
-#    This source code is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
-#    This source code incorporates work covered by the following copyright and
-#    permission notice:
-#
-# Copyright � 2015 Open Microscopy Environment / University of Dundee
+# Copyright © 2015 Open Microscopy Environment / University of Dundee
+# Copyright © 2021 Roger Leigh <rleigh@codelibre.net>
 # Written by Roger Leigh <rleigh@codelibre.net>
 #
 # Permission to use, copy, modify, distribute, and sell this software and
@@ -38,425 +24,205 @@
 # LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 
-cmake_minimum_required(VERSION 2.8.9)
+cmake_minimum_required(VERSION 3.9.0)
 
-# Default policy is from 2.8.9
-cmake_policy(VERSION 2.8.9)
-# Set MacOSX @rpath usage globally.
-if (POLICY CMP0020)
-  cmake_policy(SET CMP0020 NEW)
-endif(POLICY CMP0020)
-if (POLICY CMP0042)
-  cmake_policy(SET CMP0042 NEW)
-endif(POLICY CMP0042)
-# Use new variable expansion policy.
-if (POLICY CMP0053)
-  cmake_policy(SET CMP0053 NEW)
-endif(POLICY CMP0053)
-if (POLICY CMP0054)
-  cmake_policy(SET CMP0054 NEW)
-endif(POLICY CMP0054)
+# Default policy is from 3.9.0
+cmake_policy(VERSION 3.9.0)
 
+# Find CMake modules in cmake/
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-project(libtiff)
+# Read version information from configure.ac.
+include(AutotoolsVersion)
+message(STATUS "Building tiff version ${LIBTIFF_VERSION_FULL}")
+message(STATUS "libtiff library version ${SO_VERSION}")
+string(TIMESTAMP BUILD_DATE "%Y%m%d")
+message(STATUS "libtiff build date: ${BUILD_DATE}")
 
-set(VERSION "\"4.0.8\"")
-set(PACKAGE_VERSION ${VERSION})
-set(PACKAGE "\"tiff\"")
+# Project definition
+set(CMAKE_C_STANDARD 99)
+project(tiff
+        VERSION "${LIBTIFF_VERSION}"
+        LANGUAGES C CXX)
 
-IF(MSVC)
-    SET(CMAKE_CXX_FLAGS "/EHsc")
-ENDIF(MSVC)
+if(NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  # libtiff is being included as a subproject of some other project.
+  set(TIFF_INSTALL_DEFAULT OFF)
+else()
+  set(TIFF_INSTALL_DEFAULT ON)
+  option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+endif()
 
+option(tiff-tools "build TIFF tools" ON)
+option(tiff-tests "build TIFF tests" ON)
+option(tiff-contrib "build TIFF contrib" ON)
+option(tiff-docs "build TIFF documentation" ON)
+option(tiff-deprecated "build TIFF deprecated features" OFF)
+option(tiff-install "install TIFF targets" ${TIFF_INSTALL_DEFAULT})
 
+# Disable deprecated features to ensure clean build
+if (tiff-deprecated)
+  add_definitions(-DTIFF_DISABLE_DEPRECATED)
+endif()
+
+# Autotools compatibility
+include(AutotoolsCompat)
+
+# Compiler checks (warning flags, etc.)
+include(CompilerChecks)
+
+# Linker checks (version script, etc.)
+include(LinkerChecks)
+
+# Processor checks (endianness, fill order, floating point, etc.)
+include(ProcessorChecks)
+
+# Checks for headers
+include(IncludeChecks)
+
+# Checks for functions and other symbols
+include(SymbolChecks)
+
+# Standard installation paths
 include(GNUInstallDirs)
-include(CheckCCompilerFlag)
-include(CheckCSourceCompiles)
-include(CheckIncludeFile)
-include(CheckTypeSize)
-include(CheckFunctionExists)
+# Documentation install directory (default to cmake project docdir)
+set(LIBTIFF_DOCDIR "${CMAKE_INSTALL_DOCDIR}")
+
+# CTest testing
 enable_testing()
 
-macro(current_date var)
-  if(UNIX)
-    execute_process(COMMAND "date" +"%Y%m%d" OUTPUT_VARIABLE ${var})
-  endif()
-endmacro()
+# Checks for type presence and size
+include(TypeSizeChecks)
 
-current_date(RELEASE_DATE)
+# Check for POSIX Large File Support (LFS)
+include(LargeFileSupport)
 
-macro(extra_dist)
-  foreach(file ${ARGV})
-    file(RELATIVE_PATH relfile "${PROJECT_SOURCE_DIR}"
-         "${CMAKE_CURRENT_SOURCE_DIR}/${file}")
-    list(APPEND EXTRA_DIST "${relfile}")
-  endforeach()
-  set(EXTRA_DIST "${EXTRA_DIST}" PARENT_SCOPE)
-endmacro()
+# Options for internal codec support
+include(InternalCodecs)
+
+# Check for Deflate codec
+include(DeflateCodec)
+
+# Check for PixarLog codec
+include(PixarLogCodec)
+
+# Check for JPEG codec
+include(JPEGCodec)
+
+# Check for JBIG codec
+include(JBIGCodec)
+
+# Check for LERC codec
+include(LERCCodec)
+
+# Check for LZMA codec
+include(LZMACodec)
+
+# Check for ZSTD codec
+include(ZSTDCodec)
+
+# Check for WebP codec
+include(WebPCodec)
+
+# Option for C++ libtiffxx library
+include(CXXLibrary)
+
+# Checks for OpenGL support
+include(OpenGLChecks)
+
+# Windows support
+include(WindowsSupport)
+
+# Orthogonal features
+include(LibraryFeatures)
 
 
-include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+# math.h/libm portability
+find_package(CMath REQUIRED)
 
-set(TARGET_FILES
-  t4.h
-  tiffiop.h
-  tif_aux.c
-  tif_close.c
-  tif_codec.c
-  tif_color.c
-  tif_compress.c
-  tif_dir.c
-  tif_dir.h
-  tif_dirinfo.c
-  tif_dirread.c
-  tif_dirwrite.c
-  tif_dumpmode.c
-  tif_error.c
-  tif_extension.c
-  tif_fax3.c
-  tif_fax3.h
-  tif_fax3sm.c
-  tif_flush.c
-  tif_getimage.c
-  tif_jbig.c
-  tif_jpeg.c
-  tif_luv.c
-  tif_lzw.c
-  tif_next.c
-  tif_ojpeg.c
-  tif_open.c
-  tif_packbits.c
-  tif_pixarlog.c
-  tif_predict.c
-  tif_predict.h
-  tif_print.c
-  tif_read.c
-  tif_stream.cxx
-  tiffio.hxx
-  tif_strip.c
-  tif_swab.c
-  tif_thunder.c
-  tif_tile.c
-  tif_version.c
-  tif_warning.c
-  tif_write.c
-  tif_zip.c
-  tif_jpeg_12.c
-  tif_lzma.c
-  uvcode.h
-  )
+# Release support
+include(Release)
 
-if(UNIX)
-  set(TARGET_FILES ${TARGET_FILES} tif_unix.c)
-  # Large file support
-  # This might not catch every possibility catered for by
-  # AC_SYS_LARGEFILE.
-  add_definitions(-D_FILE_OFFSET_BITS=64)
-  set(_FILE_OFFSET_BITS 64)
+# Process subdirectories
+add_subdirectory(port)
+add_subdirectory(libtiff)
+if(tiff-tools)
+  add_subdirectory(tools)
+endif()
+if(tiff-tests)
+  add_subdirectory(test)
+endif()
+if(tiff-contrib)
+  add_subdirectory(contrib)
+endif()
+#add_subdirectory(build)
+if(tiff-docs)
+  add_subdirectory(doc)
+endif()
+
+# pkg-config support
+include(PkgConfig)
+
+message(STATUS "")
+message(STATUS "Libtiff is now configured for ${CMAKE_SYSTEM}")
+message(STATUS "")
+message(STATUS "  Installation directory:             ${prefix}")
+message(STATUS "  Documentation directory:            ${LIBTIFF_DOCDIR}")
+message(STATUS "  C compiler:                         ${CMAKE_C_COMPILER}")
+message(STATUS "  C++ compiler:                       ${CMAKE_CXX_COMPILER}")
+message(STATUS "  Build shared libraries:             ${BUILD_SHARED_LIBS}")
+message(STATUS "  Build tools:                        ${tiff-tools}")
+message(STATUS "  Build tests:                        ${tiff-tests}")
+message(STATUS "  Build contrib:                      ${tiff-contrib}")
+message(STATUS "  Build docs:                         ${tiff-docs}")
+message(STATUS "  Build deprecated features:          ${tiff-deprecated}")
+message(STATUS "  Enable linker symbol versioning:    ${HAVE_LD_VERSION_SCRIPT}")
+message(STATUS "  Support Microsoft Document Imaging: ${mdi}")
+message(STATUS "  Use win32 IO:                       ${USE_WIN32_FILEIO}")
+message(STATUS "")
+message(STATUS " Support for internal codecs:")
+message(STATUS "  CCITT Group 3 & 4 algorithms:       ${ccitt}")
+message(STATUS "  Macintosh PackBits algorithm:       ${packbits}")
+message(STATUS "  LZW algorithm:                      ${lzw}")
+message(STATUS "  ThunderScan 4-bit RLE algorithm:    ${thunder}")
+message(STATUS "  NeXT 2-bit RLE algorithm:           ${next}")
+message(STATUS "  LogLuv high dynamic range encoding: ${logluv}")
+message(STATUS "")
+message(STATUS " Support for external codecs:")
+message(STATUS "  ZLIB support:                       Requested:${zlib} Availability:${ZLIB_FOUND} Support:${ZLIB_SUPPORT}")
+if(ZLIB_SUPPORT)
+  message(STATUS "  libdeflate support:                 Requested:${libdeflate} Availability:${DEFLATE_FOUND} Support:${LIBDEFLATE_SUPPORT}")
 else()
-  set(TARGET_FILES ${TARGET_FILES} tif_win32.c)
+  message(STATUS "  libdeflate support:                 Requested:${libdeflate} Availability:${DEFLATE_FOUND} Support:${LIBDEFLATE_SUPPORT} (Depends on ZLIB Support)")
 endif()
-
-include(${CMAKE_ROOT}/Modules/TestBigEndian.cmake)
-TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
-set(HOST_BIGENDIAN ${WORDS_BIGENDIAN})
-if(HOST_BIGENDIAN)
-set(HOST_FILLORDER "FILLORDER_MSB2LSB")
+if(ZLIB_SUPPORT)
+  message(STATUS "  Pixar log-format algorithm:         Requested:${pixarlog} Availability:${ZLIB_FOUND} Support:${PIXARLOG_SUPPORT}")
 else()
-set(HOST_FILLORDER "FILLORDER_LSB2MSB")
+  message(STATUS "  Pixar log-format algorithm:         Requested:${pixarlog} Availability:${ZLIB_FOUND} Support:${PIXARLOG_SUPPORT} (Depends on ZLIB Support)")
 endif()
-include(CheckIncludeFiles)
-include(CheckSymbolExists)
-include(CheckFunctionExists)
-include(CheckCSourceCompiles)
-
-CHECK_INCLUDE_FILES("zlib.h" HAVE_ZLIB_H)
-CHECK_INCLUDE_FILES("jpeglib.h" HAVE_JPEGLIB_H)
-if(HAVE_JPEGLIB_H)
-  set(JPEG_SUPPORT 1)
-endif()
-
-if (BUILD_THIRDPARTY OR HAVE_ZLIB_H)
-  if (BUILD_THIRDPARTY)
-	include_directories( ${GROK_SOURCE_DIR}/thirdparty/include )
-  elseif (HAVE_ZLIB_H)
-	include_directories( ${ZLIB_INCLUDE_DIR} )
-  endif()
-  set(ZIP_SUPPORT 1)
-  set(PIXARLOG_SUPPORT 1) # require zlib
-endif()
-CHECK_INCLUDE_FILES("assert.h" HAVE_ASSERT_H)
-CHECK_INCLUDE_FILES("dlfcn.h" HAVE_DLFCN_H)
-CHECK_INCLUDE_FILES("fcntl.h" HAVE_FCNTL_H)
-CHECK_INCLUDE_FILES("inttypes.h" HAVE_INTTYPES_H)
-CHECK_INCLUDE_FILES("io.h" HAVE_IO_H)
-CHECK_INCLUDE_FILES("limits.h" HAVE_LIMITS_H)
-CHECK_INCLUDE_FILES("malloc.h" HAVE_MALLOC_H)
-CHECK_INCLUDE_FILES("memory.h" HAVE_MEMORY_H)
-CHECK_INCLUDE_FILES("search.h" HAVE_SEARCH_H)
-CHECK_INCLUDE_FILES("stdint.h" HAVE_STDINT_H)
-CHECK_INCLUDE_FILES("stdlib.h" HAVE_STDLIB_H)
-CHECK_INCLUDE_FILES("string.h" HAVE_STRING_H)
-CHECK_INCLUDE_FILES("strings.h" HAVE_STRINGS_H)
-CHECK_INCLUDE_FILES("sys/stat.h" HAVE_SYS_STAT_H)
-CHECK_INCLUDE_FILES("sys/time.h" HAVE_SYS_TIME_H)
-CHECK_INCLUDE_FILES("time.h" HAVE_TIME_H)
-CHECK_INCLUDE_FILES("sys/types.h" HAVE_SYS_TYPES_H)
-CHECK_INCLUDE_FILES("unistd.h" HAVE_UNISTD_H)
-CHECK_INCLUDE_FILES("windows.h" HAVE_WINDOWS_H)
-CHECK_INCLUDE_FILES("strings.h" HAVE_STRINGS_H)
-CHECK_INCLUDE_FILES("ieeefp.h" HAVE_IEEEFP_H)
-
-# wotsit ?
-if( HAVE_TIME_H AND HAVE_SYS_TIME_H )
- set(TIME_WITH_SYS_TIME 1)
-endif()
-set(LZMA_SUPPORT 0) # ?
-set(MDI_SUPPORT 1) # ?
-set(STDC_HEADERS 1) # why not ?
-set(DEFAULT_EXTRASAMPLE_AS_ALPHA 1)
-set(CHECK_JPEG_YCBCR_SUBSAMPLING 1)
-set(CCITT_SUPPORT 1)
-set(DEFER_STRILE_LOAD 0)
-set(HAVE_JBG_NEWLEN 0) # FIXME: jbigkit stuff
-set(STRIPCHOP_DEFAULT "TIFF_STRIPCHOP")
-set(STRIP_SIZE_DEFAULT 8192)
-set(SUBIFD_SUPPORT 1)
-set(THUNDER_SUPPORT 1)
-
-CHECK_FUNCTION_EXISTS(getopt HAVE_GETOPT)
-CHECK_FUNCTION_EXISTS(isascii HAVE_ISASCII)
-CHECK_FUNCTION_EXISTS(memmove HAVE_MEMMOVE)
-CHECK_FUNCTION_EXISTS(memset HAVE_MEMSET)
-CHECK_FUNCTION_EXISTS(mmap HAVE_MMAP)
-CHECK_FUNCTION_EXISTS(strcasecmp HAVE_STRCASECMP)
-CHECK_FUNCTION_EXISTS(strchr HAVE_STRCHR)
-CHECK_FUNCTION_EXISTS(strrchr HAVE_STRRCHR)
-CHECK_FUNCTION_EXISTS(strstr HAVE_STRSTR)
-CHECK_FUNCTION_EXISTS(strtol HAVE_STRTOL)
-CHECK_FUNCTION_EXISTS(strtoul HAVE_STRTOUL)
-CHECK_FUNCTION_EXISTS(strtoull HAVE_STRTOULL)
-
-# May be inlined, so check it compiles:
-check_c_source_compiles("
-#include <stdio.h>
-int main(void) {
-  char buf[10];
-  snprintf(buf, 10, \"Test %d\", 1);
-  return 0;
-}"
-  HAVE_SNPRINTF)
-
-if(NOT HAVE_SNPRINTF)
-  add_definitions(-DNEED_LIBPORT)
-endif()
-
-# CPU bit order
-set(fillorder FILLORDER_MSB2LSB)
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i.*86.*" OR
-   CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*" OR
-   CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64.*")
-  set(fillorder FILLORDER_LSB2MSB)
-endif()
-set(HOST_FILLORDER ${fillorder} CACHE STRING "Native CPU bit order")
-mark_as_advanced(HOST_FILLORDER)
-
-# CPU endianness
-include(TestBigEndian)
-test_big_endian(bigendian)
-if (bigendian)
-  set(bigendian ON)
+message(STATUS "  JPEG support:                       Requested:${jpeg} Availability:${JPEG_FOUND} Support:${JPEG_SUPPORT}")
+if(JPEG_SUPPORT)
+  message(STATUS "  Old JPEG support:                   Requested:${old-jpeg} Availability:${JPEG_SUPPORT} Support:${OJPEG_SUPPORT}")
 else()
-  set(bigendian OFF)
+  message(STATUS "  Old JPEG support:                   Requested:${old-jpeg} Availability:${JPEG_SUPPORT} Support:${OJPEG_SUPPORT} (Depends on JPEG Support)")
 endif()
-set(HOST_BIG_ENDIAN ${bigendian} CACHE STRING "Native CPU bit order")
-mark_as_advanced(HOST_BIG_ENDIAN)
-if (HOST_BIG_ENDIAN)
-  set(HOST_BIG_ENDIAN 1)
+if(JPEG_SUPPORT AND HAVE_JPEGTURBO_DUAL_MODE_8_12)
+  message(STATUS "  JPEG 8/12 bit dual mode:            Support: yes (libjpeg turbo >= 2.2 dual mode)")
 else()
-  set(HOST_BIG_ENDIAN 0)
+  message(STATUS "  JPEG 8/12 bit dual mode:            Requested:${jpeg12} Availability:${JPEG12_FOUND} Support:${JPEG_DUAL_MODE_8_12}")
 endif()
-
-# IEEE floating point
-set(HAVE_IEEEFP 1 CACHE STRING "IEEE floating point is available")
-mark_as_advanced(HAVE_IEEEFP)
-
-
-# Large file support
-if (UNIX)
-  # This might not catch every possibility catered for by
-  # AC_SYS_LARGEFILE.
-  add_definitions(-D_FILE_OFFSET_BITS=64)
-  set(FILE_OFFSET_BITS 64)
-endif()
-
-
-include(CheckTypeSize)
-
-# Check type sizes
-# NOTE: Could be replaced with C99 <stdint.h>
-check_type_size("signed short" SIZEOF_SIGNED_SHORT)
-check_type_size("unsigned short" SIZEOF_UNSIGNED_SHORT)
-check_type_size("signed int" SIZEOF_SIGNED_INT)
-check_type_size("unsigned int" SIZEOF_UNSIGNED_INT)
-check_type_size("signed long" SIZEOF_SIGNED_LONG)
-check_type_size("unsigned long" SIZEOF_UNSIGNED_LONG)
-check_type_size("signed long long" SIZEOF_SIGNED_LONG_LONG)
-check_type_size("unsigned long long" SIZEOF_UNSIGNED_LONG_LONG)
-check_type_size("unsigned char *" SIZEOF_UNSIGNED_CHAR_P)
-
-set(CMAKE_EXTRA_INCLUDE_FILES_SAVE ${CMAKE_EXTRA_INCLUDE_FILES})
-set(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} "stddef.h")
-check_type_size("size_t" SIZEOF_SIZE_T)
-check_type_size("ptrdiff_t" SIZEOF_PTRDIFF_T)
-set(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES_SAVE})
-
-set(TIFF_INT8_T "signed char")
-set(TIFF_UINT8_T "unsigned char")
-
-set(TIFF_INT16_T "signed short")
-set(TIFF_UINT16_T "unsigned short")
-
-if(SIZEOF_SIGNED_INT EQUAL 4)
-  set(TIFF_INT32_T "signed int")
-  set(TIFF_INT32_FORMAT "%d")
-elseif(SIZEOF_SIGNED_LONG EQUAL 4)
-  set(TIFF_INT32_T "signed long")
-  set(TIFF_INT32_FORMAT "%ld")
-endif()
-
-if(SIZEOF_UNSIGNED_INT EQUAL 4)
-  set(TIFF_UINT32_T "unsigned int")
-  set(TIFF_UINT32_FORMAT "%u")
-elseif(SIZEOF_UNSIGNED_LONG EQUAL 4)
-  set(TIFF_UINT32_T "unsigned long")
-  set(TIFF_UINT32_FORMAT "%lu")
-endif()
-
-if(SIZEOF_SIGNED_LONG EQUAL 8)
-  set(TIFF_INT64_T "signed long")
-  set(TIFF_INT64_FORMAT "%ld")
-elseif(SIZEOF_SIGNED_LONG_LONG EQUAL 8)
-  set(TIFF_INT64_T "signed long long")
-  if (MINGW)
-    set(TIFF_INT64_FORMAT "%I64d")
-  else()
-    set(TIFF_INT64_FORMAT "%lld")
-  endif()
-endif()
-
-if(SIZEOF_UNSIGNED_LONG EQUAL 8)
-  set(TIFF_UINT64_T "unsigned long")
-  set(TIFF_UINT64_FORMAT "%lu")
-elseif(SIZEOF_UNSIGNED_LONG_LONG EQUAL 8)
-  set(TIFF_UINT64_T "unsigned long long")
-  if (MINGW)
-    set(TIFF_UINT64_FORMAT "%I64u")
-  else()
-    set(TIFF_UINT64_FORMAT "%llu")
-  endif()
-endif()
-
-if(SIZEOF_UNSIGNED_INT EQUAL SIZEOF_SIZE_T)
-  set(TIFF_SIZE_T "unsigned int")
-  set(TIFF_SIZE_FORMAT "%u")
-elseif(SIZEOF_UNSIGNED_LONG EQUAL SIZEOF_SIZE_T)
-  set(TIFF_SIZE_T "unsigned long")
-  set(TIFF_SIZE_FORMAT "%lu")
-elseif(SIZEOF_UNSIGNED_LONG_LONG EQUAL SIZEOF_SIZE_T)
-  set(TIFF_SIZE_T "unsigned long")
-  if (MINGW)
-    set(TIFF_SIZE_FORMAT "%I64u")
-  else()
-    set(TIFF_SIZE_FORMAT "%llu")
-  endif()
-endif()
-
-if(SIZEOF_SIGNED_INT EQUAL SIZEOF_UNSIGNED_CHAR_P)
-  set(TIFF_SSIZE_T "signed int")
-  set(TIFF_SSIZE_FORMAT "%d")
-elseif(SIZEOF_SIGNED_LONG EQUAL SIZEOF_UNSIGNED_CHAR_P)
-  set(TIFF_SSIZE_T "signed long")
-  set(TIFF_SSIZE_FORMAT "%ld")
-elseif(SIZEOF_SIGNED_LONG_LONG EQUAL SIZEOF_UNSIGNED_CHAR_P)
-  set(TIFF_SSIZE_T "signed long long")
-  if (MINGW)
-    set(TIFF_SSIZE_FORMAT "%I64d")
-  else()
-    set(TIFF_SSIZE_FORMAT "%lld")
-  endif()
-endif()
-
-if(NOT SIZEOF_PTRDIFF_T)
-  set(TIFF_PTRDIFF_T "${TIFF_SSIZE_T}")
-  set(TIFF_PTRDIFF_FORMAT "${SSIZE_FORMAT}")
+message(STATUS "  ISO JBIG support:                   Requested:${jbig} Availability:${JBIG_FOUND} Support:${JBIG_SUPPORT}")
+if(ZLIB_SUPPORT)
+  message(STATUS "  LERC support:                       Requested:${lerc} Availability:${LERC_FOUND} Support:${LERC_SUPPORT}")
 else()
-  set(TIFF_PTRDIFF_T "ptrdiff_t")
-  set(TIFF_PTRDIFF_FORMAT "%ld")
+  message(STATUS "  LERC support:                       Requested:${lerc} Availability:${LERC_FOUND} Support:${LERC_SUPPORT} (Depends on ZLIB Support)")
 endif()
-
-#report_values(TIFF_INT8_T TIFF_INT8_FORMAT
-#              TIFF_UINT8_T TIFF_UINT8_FORMAT
-#              TIFF_INT16_T TIFF_INT16_FORMAT
-#              TIFF_UINT16_T TIFF_UINT16_FORMAT
-#              TIFF_INT32_T TIFF_INT32_FORMAT
-#              TIFF_UINT32_T TIFF_UINT32_FORMAT
-#              TIFF_INT64_T TIFF_INT64_FORMAT
-#              TIFF_UINT64_T TIFF_UINT64_FORMAT
-#              TIFF_SSIZE_T TIFF_SSIZE_FORMAT
-#              TIFF_PTRDIFF_T TIFF_PTRDIFF_FORMAT)
-
-# Nonstandard int types
-check_type_size(INT8 int8)
-set(HAVE_INT8 ${INT8})
-check_type_size(INT16 int16)
-set(HAVE_INT16 ${INT16})
-check_type_size(INT32 int32)
-set(HAVE_INT32 ${INT32})
-
-#
-
-
-# universal build ?
-if(APPLE)
-  set(AC_APPLE_UNIVERSAL_BUILD 1)
-endif()
-if(UNIX)
-  set(CMAKE_REQUIRED_LIBRARIES m)
-  set(HAVE_LIBM 1)
-endif()
-CHECK_SYMBOL_EXISTS(floor "math.h" HAVE_FLOOR)
-CHECK_SYMBOL_EXISTS(sqrt "math.h" HAVE_SQRT)
-CHECK_SYMBOL_EXISTS(pow "math.h" HAVE_POW)
-CHECK_SYMBOL_EXISTS(lfind "search.h" HAVE_LFIND)
-CHECK_SYMBOL_EXISTS(setmod "io.h" HAVE_SETMODE)
-
-# http://www.cmake.org/pipermail/cmake/2007-September/016285.html
-foreach(KEYWORD "inline" "__inline__" "__inline")
-  if(NOT DEFINED C_INLINE)
-    try_compile(C_HAS_${KEYWORD} "${CMAKE_CURRENT_BINARY_DIR}"
-       "${CMAKE_CURRENT_SOURCE_DIR}/test_inline.c"
-       COMPILE_DEFINITIONS "-Dinline=${KEYWORD}")
-    if(C_HAS_${KEYWORD})
-      set(C_INLINE TRUE)
-      set(INLINE_KEYWORD "${KEYWORD}")
-    endif(C_HAS_${KEYWORD})
-  endif(NOT DEFINED C_INLINE)
-endforeach(KEYWORD)
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/tiffconf.h.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/tiffconf.h @ONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/tif_config.h.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/tif_config.h @ONLY)
-
-set(LIBTARGET "tiff")
-set(CMAKE_POSITION_INDEPENDENT_CODE ON) 
-#
-add_library(${LIBTARGET} STATIC ${TARGET_FILES})
-#
-set_target_properties(${LIBTARGET}
-  PROPERTIES
-  OUTPUT_NAME "${LIBTARGET}"
-  ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/thirdparty/lib
-)
+message(STATUS "  LZMA2 support:                      Requested:${lzma} Availability:${liblzma_FOUND} Support:${LZMA_SUPPORT}")
+message(STATUS "  ZSTD support:                       Requested:${zstd} Availability:${ZSTD_USABLE} Support:${ZSTD_SUPPORT}")
+message(STATUS "  WEBP support:                       Requested:${webp} Availability:${WebP_FOUND} Support:${WEBP_SUPPORT}")
+message(STATUS "")
+message(STATUS "  C++ support:                        ${cxx} (requested) ${CXX_SUPPORT} (availability)")
+message(STATUS "")
+# message(STATUS "  X Athena Widgets support:           ${HAVE_XAW}")
+message(STATUS "  OpenGL support:                     Requested:${tiff-opengl} Availability:${HAVE_OPENGL} Support:${OPENGL_SUPPORT}")
+message(STATUS "")
